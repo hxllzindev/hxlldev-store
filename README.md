@@ -21,17 +21,48 @@ Como resumir rápido
 	- Orquestração via Saga: coordenação de reserva de estoque e processamento de pagamento.
 	- Dashboard simples para criar pedidos e visualizar eventos de Orders e Payments.
 
-Como executar (um comando):
+Como executar
 
 ```bash
-docker-compose up
+docker-compose up -d --build
 ```
 
-Pronto! Todos os serviços, banco de dados e message broker levantam de uma vez:
+Pronto! Todos os serviços, banco de dados e message broker sobem em segundo plano via Docker Compose. Não é necessário abrir terminais separados para Orders, Inventory ou Payments.
+
+Para verificar se tudo está rodando:
+
+```bash
+docker-compose ps
+```
+
+Resultado esperado:
+
+```text
+orders-service      Up   0.0.0.0:5106->5106/tcp
+inventory-service   Up   0.0.0.0:8080->8080/tcp
+payments-service    Up   0.0.0.0:8002->8002/tcp
+kafka               Up   0.0.0.0:9092->9092/tcp
+postgres            Up   0.0.0.0:5432->5432/tcp
+zookeeper           Up
+```
+
+Acessos:
 - **Orders**: http://localhost:5106 (dashboard com frontend incluído)
 - **Inventory**: http://localhost:8080
 - **Payments**: http://localhost:8002
 - **Kafka**: localhost:9092
 - **PostgreSQL**: localhost:5432
+
+Se `localhost` não responder no navegador, tente:
+
+```text
+http://127.0.0.1:5106
+```
+
+Para parar tudo:
+
+```bash
+docker-compose down
+```
 
 O projeto é intencionalmente compacto para demonstrar arquitetura distribuída, padrões de consistência e experiência prática com mensageria e persistência de eventos.
