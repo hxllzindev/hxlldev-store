@@ -19,6 +19,33 @@ Fluxo resumido (passo a passo)
 	- Orquestração via Saga: coordenação de reserva de estoque e processamento de pagamento.
 	- Dashboard simples para criar pedidos e visualizar eventos de Orders e Payments.
 
+Estrutura da aplicação
+
+```text
+hxlldev-store/
+├── docker-compose.yml        # Orquestra todos os serviços, Kafka, ZooKeeper e PostgreSQL
+├── init-databases.sql        # Cria os bancos usados pelos microserviços
+├── orders-service/           # Serviço de pedidos em ASP.NET Minimal API
+│   ├── Program.cs            # Endpoints HTTP, frontend estático e configuração principal
+│   ├── Data/                 # DbContext do Event Store de pedidos
+│   ├── Domain/               # Entidades de domínio do Orders
+│   ├── Kafka/                # Producer Kafka e SagaOrchestrator
+│   └── wwwroot/              # Dashboard web servido pelo Orders
+├── inventory-service/        # Serviço de estoque em Spring Boot
+│   └── src/                  # Código Java, consumidores Kafka e regras de estoque
+├── payments-service/         # Serviço de pagamentos em Python/FastAPI
+│   ├── main.py               # API HTTP, consumer Kafka e processamento de pagamentos
+│   └── database.py           # Configuração SQLAlchemy e eventos de pagamento
+└── UPDATE_DOCKER_FIXES.md    # Registro das correções aplicadas no runtime Docker
+```
+
+Responsabilidades principais:
+- **Orders Service**: recebe pedidos, persiste eventos, publica `order-created` e orquestra a Saga.
+- **Inventory Service**: consome eventos de pedido e reserva ou rejeita estoque.
+- **Payments Service**: consome comandos de pagamento, registra eventos e publica aprovação ou rejeição.
+- **Kafka**: transporta os eventos entre os microserviços.
+- **PostgreSQL**: armazena os bancos separados de Orders, Inventory e Payments.
+
 Como executar
 
 ```bash
