@@ -11,8 +11,6 @@ Fluxo resumido (passo a passo)
 3. Inventory e Payments consomem o evento e executam suas ações (reservar estoque, processar pagamento).
 4. O `SagaOrchestrator` coordena o fluxo, lidando com confirmações e compensações quando necessário.
 
-Como resumir rápido
-
 - Tecnologias: C# (.NET / ASP.NET Minimal API), Java (Spring Boot), Python, Kafka, PostgreSQL, Docker, HTML/CSS/JS (frontend).
 
 - Funcionalidades principais:
