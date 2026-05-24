@@ -1,0 +1,5 @@
+com/saga/inventory/service/InventoryService.class
+com/saga/inventory_service/InventoryServiceApplication.class
+com/saga/inventory/DataInitializer.class
+com/saga/inventory/repository/InventoryRepository.class
+com/saga/inventory/model/InventoryItem.class

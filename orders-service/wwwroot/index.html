@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Saga Pattern</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; color: #333; }
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        h1 { text-align: center; color: #1a73e8; margin-bottom: 30px; }
+        .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .btn { background: #1a73e8; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #1557b0; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; width: 200px; margin-right: 10px; }
+        .order-status { margin-top: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid #eee; }
+        th { background: #fafafa; font-weight: 600; }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .badge-success { background: #e6f4ea; color: #137333; }
+        .badge-danger { background: #fce8e6; color: #c5221f; }
+        .badge-warning { background: #fef7e0; color: #b06000; }
+        .loading { opacity: 0.6; pointer-events: none; }
+        pre { background: #f8f9fa; padding: 12px; border-radius: 8px; overflow-x: auto; }
+        .details { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color: #333; }
+        .details div { margin-bottom: 6px; }
+        .details strong { color: #1a73e8; }
+        .details ul { margin: 4px 0 0 1rem; padding-left: 1rem; }
+        .details li { margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛒 HXLLDEV Store - Saga Pattern Dashboard</h1>
+
+        <!-- Seção de criação de pedido -->
+        <div class="card">
+            <h2>📦 Criar Novo Pedido</h2>
+            <div style="display: flex; align-items: center; gap: 10px; margin-top: 12px;">
+                <input type="text" id="productId" value="abc" placeholder="ID do Produto">
+                <input type="number" id="quantity" value="2" min="1" placeholder="Quantidade">
+                <button class="btn" onclick="createOrder()">Enviar Pedido</button>
+            </div>
+            <div id="orderResult" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Último pedido criado e status -->
+        <div class="card">
+            <h2>🔍 Status do Último Pedido</h2>
+            <div id="orderStatus">Nenhum pedido consultado ainda.</div>
+            <button class="btn" style="margin-top: 10px;" onclick="refreshStatus()">Atualizar Status</button>
+        </div>
+    </div>
+
+    <script>
+        const ORDERS_URL = 'http://localhost:5106';
+        const PAYMENTS_URL = 'http://localhost:8002';
+        let lastOrderId = null;
+
+        async function createOrder() {
+            const productId = document.getElementById('productId').value || 'abc';
+            const quantity = parseInt(document.getElementById('quantity').value) || 1;
+            const resultDiv = document.getElementById('orderResult');
+            resultDiv.innerHTML = '⏳ Enviando pedido...';
+
+            try {
+                const response = await fetch(`${ORDERS_URL}/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customerId: '001', items: [{ productId, quantity }] })
+                });
+
+                let data;
+                try {
+                    data = await response.json();
+                } catch (e) {
+                    resultDiv.innerHTML = `<p style="color:red;">❌ Erro: Resposta inválida do servidor</p>`;
+                    return;
+                }
+
+                if (!response.ok) {
+                    const errorMsg = data.error || data.message || 'Erro desconhecido';
+                    resultDiv.innerHTML = `<p style="color:red;">❌ Erro: ${errorMsg}</p>`;
+                    return;
+                }
+
+                lastOrderId = data.orderId;
+                resultDiv.innerHTML = `<p>✅ Pedido criado! <strong>ID:</strong> ${data.orderId} - Status: <span class="badge badge-warning">pendente</span></p>`;
+                setTimeout(refreshStatus, 2000); // consulta status após 2s
+            } catch (err) {
+                resultDiv.innerHTML = `<p style="color:red;">❌ Erro ao criar pedido: ${err.message}</p>`;
+                console.error('Erro na criação do pedido:', err);
+            }
+        }
+
+        async function refreshStatus() {
+            if (!lastOrderId) {
+                document.getElementById('orderStatus').innerHTML = 'Crie um pedido primeiro.';
+                return;
+            }
+            const statusDiv = document.getElementById('orderStatus');
+            statusDiv.innerHTML = '⏳ Consultando eventos...';
+
+            try {
+                const [orderRes, paymentRes] = await Promise.all([
+                    fetch(`${ORDERS_URL}/orders/${lastOrderId}`).catch(e => ({ ok: false, error: e.message })),
+                    fetch(`${PAYMENTS_URL}/payments/${lastOrderId}`).catch(e => ({ ok: false, error: e.message }))
+                ]);
+
+                let orderEvents = [];
+                let paymentEvents = [];
+
+                // Parse order events
+                if (orderRes.ok) {
+                    try {
+                        orderEvents = await orderRes.json();
+                    } catch (e) {
+                        console.error('Erro ao parsear eventos do pedido:', e);
+                    }
+                } else if (orderRes.status === 404) {
+                    statusDiv.innerHTML = `<p style="color:orange;">⚠️ Pedido não encontrado no servidor</p>`;
+                    return;
+                }
+
+                // Parse payment events
+                if (paymentRes.ok) {
+                    try {
+                        const data = await paymentRes.json();
+                        paymentEvents = data.events || [];
+                    } catch (e) {
+                        console.error('Erro ao parsear eventos de pagamento:', e);
+                    }
+                }
+
+                let html = `<h3>Pedido <code>${lastOrderId}</code></h3>`;
+                html += '<table><tr><th>Data/Hora</th><th>Serviço</th><th>Evento</th><th>Detalhes</th></tr>';
+                
+                // Eventos de pedido
+                if (orderEvents.length > 0) {
+                    orderEvents.forEach(e => {
+                        const details = renderDetails(e.data);
+                        html += `<tr>
+                            <td>${new Date(e.timestamp).toLocaleString()}</td>
+                            <td>📦 Orders</td>
+                            <td><span class="badge ${e.eventType.includes('Confirmado') ? 'badge-success' : (e.eventType.includes('Cancelado') ? 'badge-danger' : 'badge-warning')}">${e.eventType}</span></td>
+                            <td>${details}</td>
+                        </tr>`;
+                    });
+                }
+
+                // Eventos de pagamento
+                if (paymentEvents && paymentEvents.length > 0) {
+                    paymentEvents.forEach(e => {
+                        const details = renderDetails(e.data);
+                        html += `<tr>
+                            <td>${new Date(e.timestamp).toLocaleString()}</td>
+                            <td>💳 Payments</td>
+                            <td><span class="badge ${e.event_type.includes('Approved') ? 'badge-success' : (e.event_type.includes('Rejected') ? 'badge-danger' : 'badge-warning')}">${e.event_type}</span></td>
+                            <td>${details}</td>
+                        </tr>`;
+                    });
+                }
+                
+                html += '</table>';
+                if (orderEvents.length === 0 && paymentEvents.length === 0) {
+                    html = `<p style="color:orange;">⚠️ Nenhum evento encontrado ainda. Aguarde...</p>`;
+                }
+                statusDiv.innerHTML = html;
+            } catch (err) {
+                statusDiv.innerHTML = `<p style="color:red;">❌ Erro ao consultar: ${err.message}</p>`;
+                console.error('Erro na consulta de status:', err);
+            }
+        }
+
+        function renderDetails(data) {
+            if (!data) return '<span>-</span>';
+
+            let obj;
+            try {
+                obj = typeof data === 'string' ? JSON.parse(data) : data;
+            } catch {
+                return `<pre>${escapeHtml(String(data))}</pre>`;
+            }
+
+            return formatObject(obj);
+        }
+
+        function formatObject(obj) {
+            if (obj === null || obj === undefined) {
+                return '<span>-</span>';
+            }
+
+            if (Array.isArray(obj)) {
+                return `<ul>${obj.map(item => `<li>${formatObject(item)}</li>`).join('')}</ul>`;
+            }
+
+            if (typeof obj === 'object') {
+                return `<div class="details">${Object.entries(obj).map(([key, value]) => {
+                    const label = humanizeKey(key);
+                    const renderedValue = typeof value === 'object' ? formatObject(value) : escapeHtml(String(value));
+                    return `<div><strong>${label}</strong>: ${renderedValue}</div>`;
+                }).join('')}</div>`;
+            }
+
+            return `<span>${escapeHtml(String(obj))}</span>`;
+        }
+
+        function humanizeKey(key) {
+            return key
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/^./, str => str.toUpperCase())
+                .replace(/_/, ' ')
+                .trim();
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+version: '3.8'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    mem_limit: 512m
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
+    mem_limit: 512m
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: saga
+      POSTGRES_PASSWORD: saga123
+    volumes:
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+      - pgdata:/var/lib/postgresql/data
+    mem_limit: 256m
+    networks:
+      - hxll-network
+
+  orders-service:
+    build:
+      context: ./orders-service
+      dockerfile: Dockerfile
+    container_name: orders-service
+    ports:
+      - "5106:5106"
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=orders_db;Username=saga;Password=saga123"
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - hxll-network
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: inventory-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres:5432/inventory_db"
+      SPRING_DATASOURCE_USERNAME: saga
+      SPRING_DATASOURCE_PASSWORD: saga123
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - hxll-network
+
+  payments-service:
+    build:
+      context: ./payments-service
+      dockerfile: Dockerfile
+    container_name: payments-service
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: "postgresql://saga:saga123@postgres:5432/payments_db"
+      KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - hxll-network
+
+volumes:
+  pgdata:
+
+networks:
+  hxll-network:
+    driver: bridge
