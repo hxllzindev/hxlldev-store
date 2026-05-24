@@ -14,7 +14,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 // Configurar PostgreSQL
 builder.Services.AddDbContext<OrderDbContext>(options =>
-    options.UseNpgsql("Host=localhost;Database=orders_db;Username=saga;Password=saga123"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? "Host=localhost;Database=orders_db;Username=saga;Password=saga123"));
 
 // Registrar serviços Kafka
 builder.Services.AddSingleton<KafkaProducer>();

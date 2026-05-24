@@ -1,4 +1,5 @@
 import json
+import os
 import random
 import threading
 from datetime import datetime
@@ -9,7 +10,8 @@ from database import SessionLocal, PaymentEvent
 app = FastAPI()
 
 # Configurar produtor Kafka
-producer = Producer({'bootstrap.servers': 'localhost:9092'})
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+producer = Producer({'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS})
 
 def save_event(order_id: str, event_type: str, data: dict):
     """Salva evento de pagamento no PostgreSQL"""
@@ -33,7 +35,7 @@ def save_event(order_id: str, event_type: str, data: dict):
 def consume_payment_commands():
     """Thread que consome comandos de pagamento do Kafka"""
     consumer = Consumer({
-        'bootstrap.servers': 'localhost:9092',
+        'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS,
         'group.id': 'payments-group',
         'auto.offset.reset': 'earliest'
     })

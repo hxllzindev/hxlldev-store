@@ -2,8 +2,9 @@ from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
 import uuid
 from datetime import datetime
+import os
 
-DATABASE_URL = "postgresql://saga:saga123@localhost:5432/payments_db"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://saga:saga123@localhost:5432/payments_db")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

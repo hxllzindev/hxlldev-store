@@ -14,14 +14,14 @@ public class SagaOrchestrator : BackgroundService
     private readonly KafkaProducer _producer;
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public SagaOrchestrator(KafkaProducer producer, IServiceScopeFactory scopeFactory)
+    public SagaOrchestrator(KafkaProducer producer, IServiceScopeFactory scopeFactory, IConfiguration configuration)
     {
         _producer = producer;
         _scopeFactory = scopeFactory;
 
         var config = new ConsumerConfig
         {
-            BootstrapServers = "localhost:9092",
+            BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "localhost:9092",
             GroupId = "orders-saga-group",
             AutoOffsetReset = AutoOffsetReset.Earliest
         };

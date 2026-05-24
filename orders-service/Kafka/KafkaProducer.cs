@@ -4,10 +4,15 @@ namespace orders_service.Kafka;
 
 public class KafkaProducer
 {
-    private readonly ProducerConfig _config = new()
+    private readonly ProducerConfig _config;
+
+    public KafkaProducer(IConfiguration configuration)
     {
-        BootstrapServers = "localhost:9092"
-    };
+        _config = new ProducerConfig
+        {
+            BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "localhost:9092"
+        };
+    }
 
     public async Task ProduceAsync(string topic, string key, string value)
     {

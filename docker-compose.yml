@@ -7,6 +7,8 @@ services:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     mem_limit: 512m
+    networks:
+      - hxll-network
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -18,10 +20,12 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_HEAP_OPTS: "-Xmx256m -Xms128m"
     mem_limit: 512m
+    networks:
+      - hxll-network
 
   postgres:
     image: postgres:16-alpine
@@ -46,7 +50,9 @@ services:
     ports:
       - "5106:5106"
     environment:
+      ASPNETCORE_URLS: "http://+:5106"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=orders_db;Username=saga;Password=saga123"
+      Kafka__BootstrapServers: "kafka:9092"
     depends_on:
       - postgres
       - kafka
